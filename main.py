@@ -1,5 +1,5 @@
 import genius_parser
-import generate_lyrics
+import nltk_generation
 import markov_generation
 import argparse
 
@@ -25,18 +25,15 @@ if __name__ == "__main__":
         url = geniusParser.get_song_url(
             song['primary_artist']['name'], song['title'])
         lyrics += geniusParser.get_lyrics(url)
-        print('Scraping lyrics from song %d out of %d' %(song_counter, len(songs)), end='\r')
+        print('Scraping lyrics for song %d out of %d' %(song_counter, len(songs)), end='\r')
         song_counter += 1
 
-    with open('lyrics.txt', 'w') as f:
-        f.write(lyrics)
+    if args.mode == "nltk":
 
-    if {args.mode} == {'nltk'}:
+        nltkGenerator = nltk_generation.NltkGenerator()
+        new_lyrics = nltkGenerator.generate_lyrics(lyrics)
 
-        lyricsGenerator = generate_lyrics.LyricsGenerator()
-        new_lyrics = lyricsGenerator.generate_lyrics(lyrics)
-
-    elif {args.mode} == {'markov'}:
+    elif args.mode == "markov":
         markovGenerator = markov_generation.MarkovGenerator()
         new_lyrics = markovGenerator.generate_lyrics(lyrics, 10, 10)
 
