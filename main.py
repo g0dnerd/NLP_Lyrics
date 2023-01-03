@@ -17,7 +17,7 @@ if __name__ == "__main__":
     geniusParser = genius_parser._GeniusParser()
     artist_id = geniusParser.get_artist_id({args.artist})
     songs = geniusParser.get_songs(artist_id)
-    print("Parsed " + str(len(songs)) + " songs by " + str(args.artist))
+    print("Parsed %d songs by %d" %(len(songs), str(args.artist)))
     lyrics = ""
 
     song_counter = 1
@@ -25,7 +25,7 @@ if __name__ == "__main__":
         url = geniusParser.get_song_url(
             song['primary_artist']['name'], song['title'])
         lyrics += geniusParser.get_lyrics(url)
-        print('Scraping lyrics for song %d out of %d' %(song_counter, len(songs)), end='\r')
+        print("Scraping lyrics for song %d out of %d" %(song_counter, len(songs)), end='\r')
         song_counter += 1
 
     if args.mode == "nltk":
