@@ -142,9 +142,9 @@ class _GeniusParser:
             lyrics = ""
 
         # Remove comments and other noise
-        lyrics = re.sub(r'\[.*\]', '', lyrics)
-        lyrics = re.sub(r'You might also like.*', '', lyrics)
-        lyrics = re.sub(r'Embed', '', lyrics)
+        lyrics = re.sub(r'\[.+?\]', '', lyrics)
+        # lyrics = re.sub(r'You might also like.*', '', lyrics)
+        # lyrics = re.sub(r'Embed', '', lyrics)
 
         # Re-insert new lines.
         lyrics = re.sub('<br>|<br/>', '\n', lyrics)
