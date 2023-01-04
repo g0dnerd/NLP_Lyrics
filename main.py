@@ -1,5 +1,6 @@
 import genius_parser
 import nltk_generation
+import ml_generation
 import markov_generation
 import asyncio
 import argparse
@@ -32,6 +33,12 @@ async def main(artist):
     elif args.mode == "markov":
         markovGenerator = markov_generation.MarkovGenerator()
         new_lyrics = markovGenerator.generate_lyrics(lyrics_string, 10, 10)
+
+    elif args.mode == "ml":
+        mlGenerator = ml_generation.MlGenerator()
+        processed_lyrics = [mlGenerator.clean_lyrics(lyric) for lyric in lyrics]
+        mlGenerator.extract_features(processed_lyrics)
+
 
 
     print(new_lyrics)
