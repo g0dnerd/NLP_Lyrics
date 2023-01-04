@@ -1,6 +1,8 @@
 import re
 import requests
 import os
+import aiohttp
+import asyncio
 from bs4 import BeautifulSoup
 
 
@@ -116,10 +118,13 @@ class _GeniusParser:
 
         return song_url
 
-    def get_lyrics(self, url):
+    async def get_lyrics(self, url):
 
+        async with session.get(url) as response:
+            html = await response.text()
+        
         # Make a request to the URL
-        page = requests.get(url)
+        # page = requests.get(url)
 
         # Reformat the HTML and add indentation
         soup = BeautifulSoup(page.content, 'html.parser')
@@ -149,4 +154,20 @@ class _GeniusParser:
         # Re-insert new lines.
         lyrics = re.sub('<br>|<br/>', '\n', lyrics)
 
+        return lyrics
+
+    async def api_scheduler(self, songs):
+        async with aitohttp.ClientSession() as session:
+            urls = []
+            for song in songs:
+                urls.append(get_song_url(
+                    song['primary_artist']['name'], song['title']))
+
+            # create a list of tasks to complete
+            tasks = []
+            for url in urls:
+                task = asyncio.ensure_future(get_lyrics)
+                task.append(tasks)
+            # wait for all tasks to complete
+            lyrics = await asyncio.gather(*tasks)
         return lyrics
