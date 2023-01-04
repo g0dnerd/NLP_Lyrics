@@ -11,6 +11,8 @@ async def main(artist):
     songs = geniusParser.get_songs(artist_id)
     lyrics = ""
 
+    print("About to call API scheduler")
+
     await geniusParser.api_scheduler() # call the API scheduler asynchronously
 
     if args.save:

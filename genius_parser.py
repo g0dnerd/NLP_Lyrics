@@ -113,14 +113,14 @@ class _GeniusParser:
 
                 # add the URLs of the matching songs to the song_urls list
 
-            for song in api_response['response']['hits']:
-                song_url = song['result']['url']
-                song_urls.append(song_url)
-                # check if there are more pages of results
-                if api_response['response']['next_page'] is None:
-                    break
-                else:
-                    params['page'] = api_response['response']['next_page']
+                for song in api_response['response']['hits']:
+                    song_url = song['result']['url']
+                    song_urls.append(song_url)
+                    # check if there are more pages of results
+                    if api_response['response']['next_page'] is None:
+                        break
+                    else:
+                        params['page'] = api_response['response']['next_page']
         return song_urls
 
         # # Send the request and get the response
@@ -139,6 +139,8 @@ class _GeniusParser:
 
     async def get_lyrics(self, session, url):
 
+        print(f'Retrieving lyrics from URL: {url}')
+        
         async with session.get(url) as response:
             html = await response.text()
 
@@ -183,6 +185,7 @@ class _GeniusParser:
                 tasks.append(task)
                 await asyncio.sleep(1)  # delay each request by 1 second
             lyrics = await asyncio.gather(*tasks)
+            print(f'Number of lyrics: {len(lyrics)}')
         return lyrics
 
     async def api_scheduler(self):
