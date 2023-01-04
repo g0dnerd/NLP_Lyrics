@@ -4,21 +4,18 @@ import markov_generation
 import asyncio
 import argparse
 
-async def main():
+async def main(artist):
 
-    geniusParser = genius_parser._GeniusParser()
-    artist_id = geniusParser.get_artist_id({args.artist})
+    geniusParser = genius_parser._GeniusParser(artist)
+    artist_id = geniusParser.get_artist_id()
     songs = geniusParser.get_songs(artist_id)
     lyrics = ""
 
-    song_urls = await geniusParser.api_scheduler(songs)
-
-    lyrics = await geniusParser.download_lyrics(song_urls)
+    await geniusParser.api_scheduler() # call the API scheduler asynchronously
 
     if args.save:
         with open(args.artist + "lyrics.txt", "w") as f:
             f.write(lyrics)
-
 
     if args.mode == "nltk":
 
@@ -46,6 +43,7 @@ if __name__ == "__main__":
         "--save", action="store_true", help="Save the scraped lyrics to a file called 'ARTISTNAMElyrics.txt'")
     args = parser.parse_args()
 
+    artist = str(args.artist)
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(main())
+    loop.run_until_complete(main(artist))
     
