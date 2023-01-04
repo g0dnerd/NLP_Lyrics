@@ -14,6 +14,11 @@ class _GeniusParser:
     # The base URL for the Genius API
     base_url = 'https://api.genius.com'
 
+    # Set the headers
+    headers = {
+        "Authorization": f"Bearer {access_token}"
+    }
+
     # The Genius API endpoint for getting an artist by name
     artist_endpoint = '/search'
 
@@ -25,9 +30,8 @@ class _GeniusParser:
         print("Getting Genius artist ID")
 
         params = {'q': artist_name}
-        headers = {'Authorization': 'Bearer ' + self.access_token}
         response = requests.get(self.base_url + self.artist_endpoint,
-                                params=params, headers=headers)
+                                params=params, headers=self.headers)
         data = response.json()
 
         # Check if the request was successful
@@ -62,11 +66,10 @@ class _GeniusParser:
             # The API request parameters
             params = {'page': page}
             # The API request headers
-            headers = {'Authorization': 'Bearer ' + self.access_token}
             # Make the API request
             response = requests.get(
                 self.base_url + artist_songs_endpoint,
-                params=params, headers=headers)
+                params=params, headers=self.headers)
             # Get the API response data
             data = response.json()
 
@@ -89,40 +92,45 @@ class _GeniusParser:
         # Return the list of songs
         return songs
 
-    def get_song_url(self, artist_name, song_name):
+    async def get_song_urls(self, session, song):
         """
         Gets the URL for a song on Genius.com.
         """
-        
-        # Set the headers
-        headers = {
-            "Authorization": f"Bearer {self.access_token}"
-        }
 
         # Set the search parameters
         params = {
             "q": f"{song_name} {artist_name}"
         }
 
-        # Send the request and get the response
-        response = requests.get(self.base_url + self.artist_endpoint, params=params, headers=headers)
+        async with aiohttp.ClientSession() as session:
+            async with session.get(self.base_url + self.artist_endpoint, params=params, headers=self.headers) as response:
+                api_response = await response.json()
 
-        # Get the JSON data from the response
-        data = response.json()
+        first_hit = api_response['response']['hits']['0']
 
-        # Get the first hit from the search results
-        first_hit = data['response']['hits'][0]
-
-        # Get the URL of the lyrics page from the first hit
         song_url = first_hit['result']['url']
 
         return song_url
 
-    async def get_lyrics(self, url):
+        # # Send the request and get the response
+        # response = requests.get(self.base_url + self.artist_endpoint, params=params, headers=self.headers)
+#
+        # # Get the JSON data from the response
+        # data = response.json()
+#
+        # # Get the first hit from the search results
+        # first_hit = data['response']['hits'][0]
+#
+        # # Get the URL of the lyrics page from the first hit
+        # song_url = first_hit['result']['url']
+
+        # return song_url
+
+    async def get_lyrics(self, session, url):
 
         async with session.get(url) as response:
             html = await response.text()
-        
+
         # Make a request to the URL
         # page = requests.get(url)
 
@@ -156,18 +164,21 @@ class _GeniusParser:
 
         return lyrics
 
-    async def api_scheduler(self, songs):
-        async with aitohttp.ClientSession() as session:
-            urls = []
-            for song in songs:
-                urls.append(get_song_url(
-                    song['primary_artist']['name'], song['title']))
-
-            # create a list of tasks to complete
+    async def download_lyrics(song_urls):
+        async with aiohttp.ClientSession() as session:
             tasks = []
-            for url in urls:
-                task = asyncio.ensure_future(get_lyrics)
-                task.append(tasks)
-            # wait for all tasks to complete
+            for url in song_urls:
+                task = asyncio.ensure_future(get_lyrics(session, url))
+                tasks.append(task)
+                await asyncio.sleep(1)  # delay each request by 1 second
             lyrics = await asyncio.gather(*tasks)
         return lyrics
+
+    async def api_scheduler(self, songs):
+        async with aiohttp.ClientSession() as session:
+            tasks = []
+            for song in songs:
+                task = asyncio.ensure_future(get_song_urls(session, song))
+                tasks.append(task)
+            song_urls = await asyncio.gather(*tasks)
+        return song_urls
