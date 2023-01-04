@@ -113,7 +113,7 @@ class _GeniusParser:
 
                 for song in api_response['response']['hits']:
                     song_url = song['result']['url']
-                    print(f"successfully retrieved {song_url}")
+                    # print(f"successfully retrieved {song_url}")
                     song_urls.append(song_url)
                     # check if there are more pages of results
                 if 'next_page' not in api_response['response']:
@@ -138,11 +138,11 @@ class _GeniusParser:
 
     async def get_lyrics(self, session, url):
 
-        print(f'Retrieving lyrics from URL: {url}')
+        # print(f'Retrieving lyrics from URL: {url}')
         
         async with session.get(url) as response:
             html = await response.text()
-            soup = BeautifulSoup(page.content, 'html.parser')
+            soup = BeautifulSoup(html, 'html.parser')
             html = soup.prettify()
             # Parse the reformatted HTML
             soup = BeautifulSoup(html, 'html.parser')
@@ -168,19 +168,23 @@ class _GeniusParser:
         # Re-insert new lines.
         lyrics = re.sub('<br>|<br/>', '\n', lyrics)
 
+        # print(f"Returning lyrics: {lyrics}")
         return lyrics
 
     async def download_lyrics(self, song_urls):
         async with aiohttp.ClientSession() as session:
             tasks = []
             for url in song_urls:
-                task = asyncio.ensure_future(get_lyrics(session, url))
+                task = asyncio.ensure_future(self.get_lyrics(session, url))
                 tasks.append(task)
                 await asyncio.sleep(1)  # delay each request by 1 second
             lyrics = await asyncio.gather(*tasks)
-            print(f'Number of lyrics: {len(lyrics)}')
+            # print(f'Number of lyrics: {len(lyrics)}')
         return lyrics
 
     async def api_scheduler(self):
+        print("Retrieving song URLs")
         song_urls = await self.get_song_urls()
+        print("Scraping lyrics from HTML")
         lyrics = await self.download_lyrics(song_urls)
+        return lyrics

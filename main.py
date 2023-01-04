@@ -3,6 +3,7 @@ import nltk_generation
 import markov_generation
 import asyncio
 import argparse
+import re
 
 async def main(artist):
 
@@ -11,22 +12,26 @@ async def main(artist):
     songs = geniusParser.get_songs(artist_id)
     lyrics = ""
 
-    print("About to call API scheduler")
+    print("Calling API scheduler")
 
-    await geniusParser.api_scheduler() # call the API scheduler asynchronously
+    lyrics = await geniusParser.api_scheduler() # call the API scheduler asynchronously
+
+    lyrics_string = '\n'.join(lyrics)
+    lyrics_string = re.sub(r'\n{2,}', '\n', lyrics_string)
+    lyrics_string = re.sub(r' {2,}', '', lyrics_string)
 
     if args.save:
         with open(args.artist + "lyrics.txt", "w") as f:
-            f.write(lyrics)
+            f.write(lyrics_string)
 
     if args.mode == "nltk":
 
         nltkGenerator = nltk_generation.NltkGenerator()
-        new_lyrics = nltkGenerator.generate_lyrics(lyrics)
+        new_lyrics = nltkGenerator.generate_lyrics(lyrics_string)
 
     elif args.mode == "markov":
         markovGenerator = markov_generation.MarkovGenerator()
-        new_lyrics = markovGenerator.generate_lyrics(lyrics, 10, 10)
+        new_lyrics = markovGenerator.generate_lyrics(lyrics_string, 10, 10)
 
 
     print(new_lyrics)
