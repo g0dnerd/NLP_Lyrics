@@ -102,9 +102,7 @@ class _GeniusParser:
         song_urls = []
 
         # Set the search parameters
-        params = {
-            "q": self.artist, 'per_page': 50
-        }
+        params = {"q": self.artist, 'per_page': 50}
 
         async with aiohttp.ClientSession() as session:
             while True:
@@ -115,12 +113,13 @@ class _GeniusParser:
 
                 for song in api_response['response']['hits']:
                     song_url = song['result']['url']
+                    print(f"successfully retrieved {song_url}")
                     song_urls.append(song_url)
                     # check if there are more pages of results
-                    if api_response['response']['next_page'] is None:
-                        break
-                    else:
-                        params['page'] = api_response['response']['next_page']
+                if 'next_page' not in api_response['response']:
+                    break
+                else:
+                    params['page'] = api_response['response']['next_page']
         return song_urls
 
         # # Send the request and get the response
@@ -143,16 +142,10 @@ class _GeniusParser:
         
         async with session.get(url) as response:
             html = await response.text()
-
-        # Make a request to the URL
-        # page = requests.get(url)
-
-        # Reformat the HTML and add indentation
-        soup = BeautifulSoup(page.content, 'html.parser')
-        html = soup.prettify()
-
-        # Parse the reformatted HTML
-        soup = BeautifulSoup(html, 'html.parser')
+            soup = BeautifulSoup(page.content, 'html.parser')
+            html = soup.prettify()
+            # Parse the reformatted HTML
+            soup = BeautifulSoup(html, 'html.parser')
 
         # Find the first div element with the
         # class attribute 'data-lyrics-container'
@@ -177,7 +170,7 @@ class _GeniusParser:
 
         return lyrics
 
-    async def download_lyrics(song_urls):
+    async def download_lyrics(self, song_urls):
         async with aiohttp.ClientSession() as session:
             tasks = []
             for url in song_urls:
