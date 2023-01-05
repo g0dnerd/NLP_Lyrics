@@ -21,7 +21,7 @@ async def main(artist):
             for current_artist in artists:
                 geniusParser = genius_parser._GeniusParser(current_artist)
                 artist_id = geniusParser.get_artist_id()
-                songs = geniusParser.get_songs(artist_id)
+                # songs = geniusParser.get_songs(artist_id)
                 lyrics = ""
 
                 print("Calling API scheduler")
@@ -35,7 +35,7 @@ async def main(artist):
             songs = geniusParser.get_songs(artist_id)
             lyrics = await geniusParser.api_scheduler(False)
 
-            sprint("Calling API scheduler")
+            print("Calling API scheduler")
 
         lyrics_string = '\n'.join(lyrics)
         lyrics_string = re.sub(r'\n{2,}', '\n', lyrics_string)
