@@ -1,44 +1,31 @@
-import re
-import string
-from nltk.corpus import stopwords
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import LogisticRegression
-import argparse
+import transformers
+import torch
 
-class MlGenerator:
+class TransformerGenerator:
+  
+  def train_on_dataset(self, dataset):
+    # Load the BERT model
+    model = transformers.BertForMaskedLM.from_pretrained('bert-base-uncased')
 
-	def clean_lyrics(self, lyrics):
-	    # Convert lyrics to lowercase
-	    lyrics = lyrics.lower()
+    # Tokenize the input
+    tokenizer = transformers.BertTokenizer.from_pretrained('bert-base-uncased')
 
-	    # Remove newline characters
-	    lyrics = lyrics.replace('\n', ' ')
+    print(dataset)
+    # Define a mapping from artists to integer labels
+    all_artists = [artist for song_lyrics in dataset for artist in song_lyrics[1]]
+    artist_to_id = {artist: i for i, artist in enumerate(set(all_artists))}
 
-	    # Remove punctuation
-	    lyrics = lyrics.translate(str.maketrans('', '', string.punctuation))
+    # Define a training loop
+    for song_lyrics in dataset:
+      lyrics, artists = song_lyrics
+      input_ids = tokenizer.encode(lyrics, return_tensors='pt')
+      labels = torch.tensor([artist_to_id[artist] for artist in artists], dtype=torch.long)
 
-	    # Remove numbers
-	    lyrics = re.sub(r'\d+', '', lyrics)
+      # Calculate the loss and backpropagate the gradients
+      loss = model(input_ids, labels=labels)[0]
+      loss.backward()
 
-	    # Remove stop words
-	    stop_words = set(stopwords.words('english'))
-	    words = lyrics.split()
-	    lyrics = [word for word in words if word not in stop_words]
+      # Update the model weights
+      optimizer.step()
+      model.zero_grad()
 
-	    # Join words to form processed lyrics
-	    lyrics = " ".join(lyrics)
-
-	    return lyrics
-
-	def extract_features(self, lyrics):
-		vectorizer = TfidfVectorizer()
-		X = vectorizer.fit_transform(lyrics)
-		print(X)
-
-	def train_model(self, dataset):
-		
-		# Create a logistic regression model
-		model = LogisticRegression()
-
-		# Split the data into training and test sets
-		X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
