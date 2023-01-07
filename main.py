@@ -1,68 +1,82 @@
 import genius_parser
 import nltk_generation
 import markov_generation
+import ml_generation
+import dataset_utility
 import asyncio
 import argparse
-import re
+import csv
 
-async def main(artist):
 
-    if args.train == None:
-        if args.dataset != None:
+async def make_dataset(dataset: str):
+    # If dataset mode is specified, read in the list of artists
+    with open(args.dataset, 'r') as f:
+        artists = f.readlines()
+    artists = [artist.strip() for artist in artists]
 
-            # If dataset mode is specified, read in the list of artists
-            with open(args.dataset, 'r') as f:
-                artists = f.readlines()
-            artists = [artist.strip() for artist in artists]
-            
-            # create a parser class and retrieve all songs for the current artist
-            for current_artist in artists:
-                geniusParser = genius_parser._GeniusParser(current_artist)
-                artist_id = geniusParser.get_artist_id()
-                # songs = geniusParser.get_songs(artist_id)
-                lyrics = ""
+    # create a parser class and retrieve all song lyrics for the current artist
 
-                print("Calling API scheduler")
+    # prepare the dataset file
+    with open('lyrics.csv', 'w', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(['lyrics', 'artist'])
+    for current_artist in artists:
+        lyrics = await fetch_lyrics(current_artist, dumping=True)
 
-                # call the API scheduler asynchronously
 
-                lyrics = await geniusParser.api_scheduler(True)
-        else:
-            geniusParser = genius_parser._GeniusParser(artist)
-            artist_id = geniusParser.get_artist_id()
-            songs = geniusParser.get_songs(artist_id)
-            lyrics = await geniusParser.api_scheduler(False)
+async def fetch_lyrics(artist, dumping: bool):
+    geniusParser = genius_parser._GeniusParser(artist)
+    artist_id = geniusParser.get_artist_id()
+    print("Calling API scheduler")
+    lyrics = await geniusParser.api_scheduler(dumping)
+    lyrics = ' '.join(lyrics)
+    return lyrics
 
-            print("Calling API scheduler")
 
-        lyrics_string = '\n'.join(lyrics)
-        lyrics_string = re.sub(r'\n{2,}', '\n', lyrics_string)
-        lyrics_string = re.sub(r' {2,}', '', lyrics_string)
+def nltk_generate(lyrics: str):
+    nltkGenerator = nltk_generation.NltkGenerator()
+    new_lyrics = nltkGenerator.generate_lyrics(lyrics)
+    print(new_lyrics)
 
-    else:
-        datasetUtility = dataset_utility.DatasetUtility()
-        dataset = datasetUtility.pickle_load_from_file(args.train)
-        dataset = datasetUtility.clean_dataset(dataset)
-        sequences = datasetUtility.tokenize_lyrics(dataset)
-        (X_train, y_train), (X_test, y_test) = datasetUtility.split_dataset(sequences, dataset)
 
+def markov_generate(lyrics: str):
+    markovGenerator = markov_generation.MarkovGenerator()
+    new_lyrics = markovGenerator.generate_lyrics(lyrics, 10, 10)
+    print(new_lyrics)
+
+
+def train_model():
+    datasetUtility = dataset_utility.DatasetUtility()
+    lyrics,artists = datasetUtility.unpack_dataset("lyrics.csv")
+    lyrics = datasetUtility.clean_dataset(lyrics)
+    (X_train, y_train), (X_test, y_test) = datasetUtility.split_dataset(lyrics, artists)
+    train_dict = datasetUtility.tokenize_lyrics(X_train, y_train)
+    test_dict = datasetUtility.tokenize_lyrics(X_test, y_test)
+    train_dataset = dataset_utility.LyricsDataset(train_dict)
+    test_dict = dataset_utility.LyricsDataset(test_dict)
+    bert_classifier = ml_generation.BERTClassifier(train_dataset, train_dataset, batch_size = 32)
+    bert_classifier.train()
+
+
+
+async def main(artist: str):
+
+    if args.dataset != None:
+        # If dataset mode was specified,
+        # make a dataset from the artists specified in args.dataset
+        await make_dataset(args.dataset)
+    elif args.artist != None:
+        # If not, fetch lyrics regularly without dumping
+        lyrics = await fetch_lyrics(artist, dumping=False)
+
+    # If one of the non-ML generation modes were specified
     if args.mode == "nltk":
-        nltkGenerator = nltk_generation.NltkGenerator()
-        new_lyrics = nltkGenerator.generate_lyrics(lyrics_string)
-        print(new_lyrics)
-
+        nltk_generate(lyrics)
     elif args.mode == "markov":
-        markovGenerator = markov_generation.MarkovGenerator()
-        new_lyrics = markovGenerator.generate_lyrics(lyrics_string, 10, 10)
-        print(new_lyrics)
-
+        markov_generate(lyrics)
     elif args.mode == "ml":
-        mlGenerator = ml_generation.MlGenerator()
-        processed_lyrics = [mlGenerator.clean_lyrics(
-            lyric) for lyric in lyrics]
-        mlGenerator.extract_features(processed_lyrics)
-        print(new_lyrics)
-
+        # TODO
+        train_model()
 
 if __name__ == "__main__":
 
@@ -70,15 +84,17 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='Download song lyrics by an artist and generate more.')
     parser.add_argument(
-        '--artist', type=str, help='The artist name to generate lyrics for. Please input this in quotation marks using spaces if necessary.')
+        '--artist', type=str, help='The artist name to generate lyrics for.\
+        Please input this in quotation marks using spaces if necessary.')
     parser.add_argument(
-        "--mode", help="The chosen generation mode. nltk and markov currently exist.")
+        "--mode", help="The chosen generation mode. Choose between nltk, markov and ml.\
+        If ML is specified, it will look for a dataset.csv file")
     parser.add_argument(
-        "--dataset", type=str, help="Provide an input list of artists separated by newlines. Does not generate lyrics and instead stores the scraped lyrics to a pickle.")
+        "--dataset", type=str, help="Provide an input list of artists separated by newlines.\
+        Does not generate lyrics and instead stores the scraped lyrics to a .csv file.\
+        WARNING: an existing file called lyrics.csv will be overwritten. ")
     parser.add_argument(
         "--save", action="store_true", help="Save the scraped lyrics to a file called 'ARTISTNAMElyrics.txt'")
-    parser.add_argument(
-        "--train", help="Specify the filename for the dataset to train on.")
     args = parser.parse_args()
 
     artist = str(args.artist)

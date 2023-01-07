@@ -4,6 +4,7 @@ import os
 import aiohttp
 import asyncio
 import pickle
+import csv
 from bs4 import BeautifulSoup
 
 
@@ -12,7 +13,8 @@ class _GeniusParser:
     def __init__(self, artist):
 
         # Your Genius API access token
-        self.access_token = 'pXlD53LSYo8uToC1rJ7Y5IRhMpxhAP7xBZag_4wgQ-8uZm2kBLkYQGlYFwpuPay0'
+        self.access_token =\
+            'pXlD53LSYo8uToC1rJ7Y5IRhMpxhAP7xBZag_4wgQ-8uZm2kBLkYQGlYFwpuPay0'
 
         # The base URL for the Genius API
         self.base_url = 'https://api.genius.com'
@@ -27,14 +29,12 @@ class _GeniusParser:
 
         self.artist_id = 0
 
-
-
     def get_artist_id(self):
         """
         Gets the Genius ID for an artist by name.
         """
 
-        print("Getting Genius artist ID")
+        print(f'Getting Genius artist ID for {self.artist}')
 
         params = {'q': self.artist}
         response = requests.get(self.base_url + self.artist_endpoint,
@@ -66,13 +66,13 @@ class _GeniusParser:
 
         artist_songs_endpoint = '/artists/' + str(self.artist_id) + '/songs'
 
-
         async with aiohttp.ClientSession() as session:
             while more_songs:
 
                 # Set the search parameters
                 params = {'page': page}
-                async with session.get(self.base_url + artist_songs_endpoint, params=params, headers=self.headers) as response:
+                async with session.get(self.base_url + artist_songs_endpoint,
+                                       params=params, headers=self.headers) as response:
                     api_response = await response.json()
 
                 # add the URLs of the matching songs to the song_urls list
@@ -88,10 +88,10 @@ class _GeniusParser:
                 else:
                     more_songs = False
                     print(data['error'])
-        print(f'Found %d song URLs by {self.artist}' % len(song_urls))
+        print(f'Found %d song URLs' % len(song_urls))
         return song_urls
 
-    async def get_lyrics(self, session, url):
+    async def get_lyrics(self, session, url: str)->str:
 
         async with session.get(url) as response:
             html = await response.text()
@@ -115,15 +115,16 @@ class _GeniusParser:
 
         # Remove comments and other noise
         lyrics = re.sub(r'\[.+?\]', '', lyrics)
-        # lyrics = re.sub(r'You might also like.*', '', lyrics)
-        # lyrics = re.sub(r'Embed', '', lyrics)
+        lyrics = re.sub(r'\<.+?\>', '', lyrics)
 
         # Re-insert new lines.
         lyrics = re.sub('<br>|<br/>', '\n', lyrics)
+        lyrics = re.sub(r'\n', '', lyrics)
+        lyrics = re.sub(r'\s{2,}', ' ', lyrics)
 
         return lyrics
 
-    async def download_lyrics(self, song_urls, dumping: bool):
+    async def download_lyrics(self, song_urls: list, dumping: bool):
         async with aiohttp.ClientSession() as session:
             tasks = []
             for url in song_urls:
@@ -131,12 +132,12 @@ class _GeniusParser:
                 tasks.append(task)
                 # await asyncio.sleep(1)  # delay each request by 1 second
             lyrics = await asyncio.gather(*tasks)
+            # If dumping to dataset was specified, write lyrics to a csv. file
             if dumping:
-                dataset_matrix = []
-                for lyric in lyrics:
-                    dataset_matrix.append([lyric, self.artist])
-                with open("lyrics.pkl", "ab") as f:
-                    pickle.dump(dataset_matrix, f)
+                with open('lyrics.csv', 'a', newline='') as csvfile:
+                    writer = csv.writer(csvfile)
+                    rows = [[lyric, self.artist] for lyric in lyrics]
+                    writer.writerows(rows)
         return lyrics
 
     async def api_scheduler(self, dumping: bool):

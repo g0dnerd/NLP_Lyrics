@@ -1,58 +1,94 @@
-import pickle
+import csv
 import re
 import unicodedata
-from keras.preprocessing.text import Tokenizer
+import torch
+import random
+from transformers import BertTokenizer
 from sklearn.model_selection import train_test_split
 
 
 class DatasetUtility:
 
-    def pickle_load_from_file(self, filename):
+    def unpack_dataset(self, filename: str)->(list, list):
         with open(filename, "rb") as f:
-            matrices = []
+            lyrics = []
+            artists = []
+            with open(filename, 'r') as csvfile:
+                reader = csv.DictReader(csvfile)
+                for row in reader:
+                    lyrics.append(row['lyrics'])
+                    artists.append(row['artist'])
+        return lyrics, artists
 
-            # Iterate until there are no more matrix objects in the file
-            while True:
-                try:
-                    # Deserialize the next matrix object from the file
-                    matrix = pickle.load(f)
+    def clean_dataset(self, lyrics: list)->list:
+        for lyric in lyrics:
+            # Remove everything within square brackets
+            lyric = re.sub(r'\[[^\]]*\]', '', lyric)
 
-                    # Add the matrix to the list
-                    matrices.append(matrix)
-                except EOFError:
-                    # If there are no more matrix objects in the file, terminate the loop
-                    break
-        return matrices
+            # Remove everything within angle brackets
+            lyric = re.sub(r'\<[^\>]*\>', '', lyric)
 
-    def clean_dataset(self, dataset):
-        for matrix in dataset:
-            for lyrics in matrix:
-                # Remove everything within square brackets
-                lyrics[0] = re.sub(r'\[[^\]]*\]', '', lyrics[0])
+            # Remove all newl)s
+            lyric = re.sub(r'\n', '', lyric)
 
-                # Remove everything within angle brackets
-                lyrics[0] = re.sub(r'\<[^\>]*\>', '', lyrics[0])
+            # Remove all stacked empty characters
+            lyric = re.sub(r' {2,}', ' ', lyric)
 
-                # Remove all newlines
-                lyrics[0] = re.sub(r'\n', '', lyrics[0])
+            # Remove weird Unicode noise
+            lyric = unicodedata.normalize("NFKD", lyric)
 
-                # Remove all stacked empty chars
-                lyrics[0] = re.sub(r' {2,}', ' ', lyrics[0])
+        # Remove leading and trailing quotation marks
+        for i, s in enumerate(lyrics):
+            lyrics[i] = s[1:-1]
 
-                # Remove weird Unicode noise
-                lyrics[0] = unicodedata.normalize("NFKD", lyrics[0])
+        with open('lyrics_cleaned.csv', 'w') as csvfile:
+            writer = csv.writer(csvfile)
+            for lyric in lyrics:
+                writer.writerow([lyric, 'artist'])
 
-        return dataset
+        return lyrics
 
-    def tokenize_lyrics(self, dataset):
-        all_lyrics = [lyric for matrix in dataset for lyric in matrix[0]]
-        tokenizer = Tokenizer()
-        tokenizer.fit_on_texts(all_lyrics)
-        sequences = [tokenizer.texts_to_sequences(
-            matrix[0]) for matrix in dataset]
-        return sequences
+    def tokenize_lyrics(self, lyrics: list, labels: list)->dict:
+        # Instantiate the tokenizer
+        tokenizer = BertTokenizer.from_pretrained("bert-base-cased")
 
-    def split_dataset(self, sequences, dataset, test_size=0.2):
-        X_train, X_test, y_train, y_test = train_test_split(
-            sequences, dataset[1], test_size=test_size)
+        # Tokenize a batch of lyrics
+        tokenized_lyrics = tokenizer.batch_encode_plus(
+            lyrics, padding='longest', return_tensors="pt")
+
+        # Create a mpaping from label strings to integers
+        label_mapping = {label: i for i, label in enumerate(set(labels))}
+
+        # Convert the labels to integers using the mapping
+        labels = [label_mapping[label] for label in labels]
+        # Add the labels (artists) to the dictionary
+        tokenized_lyrics["labels"] = torch.tensor(labels)
+
+        return tokenized_lyrics
+
+    def split_dataset(self, lyrics, labels, test_size=0.2):
+        # Zip the lyrics and labels together
+        dataset = list(zip(lyrics, labels))
+        # Shuffle the dataset
+        random.shuffle(dataset)
+        # Calculate the index to split the dataset at
+        split_index = int(test_size * len(dataset))
+        # Split the dataset into training and test sets
+        train_set = dataset[split_index:]
+        test_set = dataset[:split_index]
+        # Unzip the training and test sets
+        X_train, y_train = zip(*train_set)
+        X_test, y_test = zip(*test_set)
         return (X_train, y_train), (X_test, y_test)
+
+
+class LyricsDataset(torch.utils.data.Dataset):
+    def __init__(self, data: dict):
+        self.inputs = data["input_ids"]
+        self.labels = data["labels"]
+
+    def __len__(self):
+        return len(self.inputs)
+
+    def __getitem__(self, index):
+        return self.inputs[index], self.labels[index]
