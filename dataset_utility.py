@@ -49,14 +49,18 @@ class DatasetUtility:
         return lyrics
 
     def tokenize_lyrics(self, lyrics: list, labels: list)->dict:
+        # Set a maximum length and truncate the data. BERT can handle max. 512
+        max_length = 512
+
         # Instantiate the tokenizer
         tokenizer = BertTokenizer.from_pretrained("bert-base-cased")
 
         # Tokenize a batch of lyrics
         tokenized_lyrics = tokenizer.batch_encode_plus(
-            lyrics, padding='longest', return_tensors="pt")
+            lyrics, padding='longest', max_length=max_length, return_tensors="pt")
 
-        # Create a mpaping from label strings to integers
+        labels = labels[:max_length]
+        # Create a mapping from label strings to integers
         label_mapping = {label: i for i, label in enumerate(set(labels))}
 
         # Convert the labels to integers using the mapping

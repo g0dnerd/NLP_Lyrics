@@ -53,8 +53,8 @@ def train_model():
     train_dict = datasetUtility.tokenize_lyrics(X_train, y_train)
     test_dict = datasetUtility.tokenize_lyrics(X_test, y_test)
     train_dataset = dataset_utility.LyricsDataset(train_dict)
-    test_dict = dataset_utility.LyricsDataset(test_dict)
-    bert_classifier = ml_generation.BERTClassifier(train_dataset, train_dataset, batch_size = 32)
+    test_dataset = dataset_utility.LyricsDataset(test_dict)
+    bert_classifier = ml_generation.BERTClassifier(train_dataset, test_dataset, batch_size = 32)
     bert_classifier.train()
 
 
