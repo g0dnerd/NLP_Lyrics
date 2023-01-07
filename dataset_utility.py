@@ -73,16 +73,21 @@ class DatasetUtility:
     def split_dataset(self, lyrics, labels, test_size=0.2):
         # Zip the lyrics and labels together
         dataset = list(zip(lyrics, labels))
+
         # Shuffle the dataset
         random.shuffle(dataset)
+
         # Calculate the index to split the dataset at
         split_index = int(test_size * len(dataset))
+
         # Split the dataset into training and test sets
         train_set = dataset[split_index:]
         test_set = dataset[:split_index]
+
         # Unzip the training and test sets
         X_train, y_train = zip(*train_set)
         X_test, y_test = zip(*test_set)
+        
         return (X_train, y_train), (X_test, y_test)
 
 
