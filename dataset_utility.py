@@ -55,10 +55,11 @@ class DatasetUtility:
         # Instantiate the tokenizer
         tokenizer = BertTokenizer.from_pretrained("bert-base-cased")
 
-        # Tokenize a batch of lyrics
+        # Tokenize a batch of lyrics, truncating it to max_length
         tokenized_lyrics = tokenizer.batch_encode_plus(
             lyrics, padding='longest', max_length=max_length, return_tensors="pt")
 
+        # Truncate the list of labels to the same length
         labels = labels[:max_length]
         # Create a mapping from label strings to integers
         label_mapping = {label: i for i, label in enumerate(set(labels))}
@@ -87,7 +88,7 @@ class DatasetUtility:
         # Unzip the training and test sets
         X_train, y_train = zip(*train_set)
         X_test, y_test = zip(*test_set)
-        
+
         return (X_train, y_train), (X_test, y_test)
 
 
