@@ -10,14 +10,13 @@ from sklearn.model_selection import train_test_split
 class DatasetUtility:
 
     def unpack_dataset(self, filename: str)->(list, list):
-        with open(filename, "rb") as f:
-            lyrics = []
-            artists = []
-            with open(filename, 'r') as csvfile:
-                reader = csv.DictReader(csvfile)
-                for row in reader:
-                    lyrics.append(row['lyrics'])
-                    artists.append(row['artist'])
+        lyrics = []
+        artists = []
+        with open(filename, 'r') as csvfile:
+            reader = csv.DictReader(csvfile)
+            for row in reader:
+                lyrics.append(row['lyrics'])
+                artists.append(row['artist'])
         return lyrics, artists
 
     def clean_dataset(self, lyrics: list)->list:
@@ -28,7 +27,7 @@ class DatasetUtility:
             # Remove everything within angle brackets
             lyric = re.sub(r'\<[^\>]*\>', '', lyric)
 
-            # Remove all newl)s
+            # Remove all newlines
             lyric = re.sub(r'\n', '', lyric)
 
             # Remove all stacked empty characters
@@ -48,15 +47,18 @@ class DatasetUtility:
 
         return lyrics
 
+
+    """
+    tokenize_dataset currently deprecated, tokenizing happening within model.train()
+    """
+
     # def tokenize_dataset(self, X_train, y_train):
         # # Initialize the BERT tokenizer
-        # tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-# 
+        # tokenizer = BertTokenizer.from_pretrained('bert-base-uncased') 
         # # Tokenize and convert the training data to tensors
         # inputs = tokenizer.batch_encode_plus(X_train, max_length=512, pad_to_max_length=True, return_tensors='pt')
         # inputs = {k: v.to(device) for k, v in inputs.items()}
         # labels = torch.tensor(y_train).to(device)
-# 
         # return inputs,
 
     def split_dataset(self, data, train_percentage=0.8):
