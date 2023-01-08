@@ -1,12 +1,12 @@
 import torch
 import transformers
+from transformers import BertTokenizer
+from sklearn.preprocessing import LabelEncoder
 from torch.utils.data import TensorDataset, DataLoader
 
 
 class BERTClassifier:
-    def __init__(self, train_dataset, test_dataset, batch_size, epochs=4):
-        self.train_dataset = train_dataset
-        self.test_dataset = test_dataset
+    def __init__(self, batch_size, epochs=4):
         self.batch_size = batch_size
         self.epochs = epochs
 
@@ -25,30 +25,34 @@ class BERTClassifier:
         # Define the loss function and the optimizer
         self.loss_fn = torch.nn.CrossEntropyLoss()
 
-    def train(self):
+    def train(self, X_train, y_train):
+
+        # Initialize the BERT tokenizer and a Label Encoder
+        tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        label_encoder = LabelEncoder()
+
+        # Tokenize and convert the training data to tensors
+        inputs = tokenizer.batch_encode_plus(
+            X_train, max_length=512, padding='max_length', return_tensors='pt')
+        # inputs = {k: v.to(self.device) for k, v in inputs.items()}
+        integer_labels = label_encoder.fit_transform(y_train)
+        labels = torch.tensor(integer_labels)
+
         # Set the model to training mode
         self.model.train()
 
-        # Use the DataLoader class to create an iterator over the training data
-        train_data_iterator = torch.utils.data.DataLoader(
-            self.train_dataset, batch_size=self.batch_size, shuffle=True)
-
         # Loop over the training data for the specified number of epochs
         for epoch in range(self.epochs):
-            print("Epoch:", epoch+1)
-
-            # Loop over the training data in the current epoch
-            for inputs, labels in train_data_iterator:
-                inputs = inputs.to(self.device)
+            for i, (inputs, labels) in enumerate(train_dataloader):
+                # Move inputs and labels to the device
+                inputs = {k: v.to(self.device) for k, v in inputs.items()}
                 labels = labels.to(self.device)
 
-                # Zero the gradients
-                self.optimizer.zero_grad()
-
                 # Forward pass
-                outputs = self.model(inputs, labels=labels)
-                loss = self.loss_fn(outputs[0], labels)
+                outputs = self.model(**inputs)
+                loss = self.loss_fn(outputs, labels)
 
-                # Backward pass
+                # Backward pass and optimization
+                self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()

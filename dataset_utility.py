@@ -48,54 +48,44 @@ class DatasetUtility:
 
         return lyrics
 
-    def tokenize_lyrics(self, lyrics: list, labels: list)->dict:
-        # Set a maximum length and truncate the data. BERT can handle max. 512
-        max_length = 512
+    # def tokenize_dataset(self, X_train, y_train):
+        # # Initialize the BERT tokenizer
+        # tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+# 
+        # # Tokenize and convert the training data to tensors
+        # inputs = tokenizer.batch_encode_plus(X_train, max_length=512, pad_to_max_length=True, return_tensors='pt')
+        # inputs = {k: v.to(device) for k, v in inputs.items()}
+        # labels = torch.tensor(y_train).to(device)
+# 
+        # return inputs,
 
-        # Instantiate the tokenizer
-        tokenizer = BertTokenizer.from_pretrained("bert-base-cased")
-
-        # Tokenize a batch of lyrics, truncating it to max_length
-        tokenized_lyrics = tokenizer.batch_encode_plus(
-            lyrics, padding='longest', max_length=max_length, return_tensors="pt")
-
-        # Truncate the list of labels to the same length
-        labels = labels[:max_length]
-        # Create a mapping from label strings to integers
-        label_mapping = {label: i for i, label in enumerate(set(labels))}
-
-        # Convert the labels to integers using the mapping
-        labels = [label_mapping[label] for label in labels]
-        # Add the labels (artists) to the dictionary
-        tokenized_lyrics["labels"] = torch.tensor(labels)
-
-        return tokenized_lyrics
-
-    def split_dataset(self, lyrics, labels, test_size=0.2):
-        # Zip the lyrics and labels together
-        dataset = list(zip(lyrics, labels))
-
-        # Shuffle the dataset
-        random.shuffle(dataset)
-
-        # Calculate the index to split the dataset at
-        split_index = int(test_size * len(dataset))
-
-        # Split the dataset into training and test sets
-        train_set = dataset[split_index:]
-        test_set = dataset[:split_index]
-
-        # Unzip the training and test sets
-        X_train, y_train = zip(*train_set)
-        X_test, y_test = zip(*test_set)
-
+    def split_dataset(self, data, train_percentage=0.8):
+        random.shuffle(data)
+        train_size = int(len(data) * train_percentage)
+        train_data = data[:train_size]
+        test_data = data[train_size:]
+        X_train = [lyric for lyric, artist in train_data]
+        y_train = [artist for lyric, artist in train_data]
+        X_test = [lyric for lyric, artist in test_data]
+        y_test = [artist for lyric, artist in test_data]
         return (X_train, y_train), (X_test, y_test)
+
+    def subsequence_split(self, lyrics: list, artists: list, sub_sequence_length=512)->list:
+        sub_sequences = []
+
+        for i in range(len(lyrics)):
+            song_lyrics = lyrics[i]
+            artist = artists[i]
+            for j in range(0, len(song_lyrics), sub_sequence_length):
+                sub_sequence = song_lyrics[j:j+sub_sequence_length]
+                sub_sequences.append((sub_sequence, artist))
+        return sub_sequences
 
 
 class LyricsDataset(torch.utils.data.Dataset):
-    def __init__(self, data: dict):
-        self.inputs = data["input_ids"]
-        self.labels = data["labels"]
+    def __init__(self, input_tensor, label_tensor):
+        self.inputs = input_tensor
+        self.labels = label_tensor
 
     def __len__(self):
         return len(self.inputs)
