@@ -8,7 +8,7 @@ import csv
 from bs4 import BeautifulSoup
 
 
-class _GeniusParser:
+class GeniusParser:
 
     def __init__(self, artist):
 

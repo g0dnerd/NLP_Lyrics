@@ -25,7 +25,7 @@ async def make_dataset(dataset: str):
 
 
 async def fetch_lyrics(artist, dumping: bool):
-    geniusParser = genius_parser._GeniusParser(artist)
+    geniusParser = genius_parser.GeniusParser(artist)
     artist_id = geniusParser.get_artist_id()
     print("Calling API scheduler")
     lyrics = await geniusParser.api_scheduler(dumping)
@@ -34,33 +34,30 @@ async def fetch_lyrics(artist, dumping: bool):
 
 
 def nltk_generate(lyrics: str):
-    nltkGenerator = nltk_generation.NltkGenerator()
-    new_lyrics = nltkGenerator.generate_lyrics(lyrics)
+    nltk_generator = nltk_generation.NltkGenerator()
+    new_lyrics = nltk_generator.generate_lyrics(lyrics)
     print(new_lyrics)
 
 
 def markov_generate(lyrics: str):
-    markovGenerator = markov_generation.MarkovGenerator()
-    new_lyrics = markovGenerator.generate_lyrics(lyrics, 10, 10)
+    markov_generator = markov_generation.MarkovGenerator()
+    new_lyrics = markov_generator.generate_lyrics(lyrics, 10, 10)
     print(new_lyrics)
 
 
 def train_model():
-    datasetUtility = dataset_utility.DatasetUtility()
-    lyrics,artists = datasetUtility.unpack_dataset("lyrics.csv")
-    lyrics = datasetUtility.clean_dataset(lyrics)
-    subsequences = datasetUtility.subsequence_split(lyrics, artists, sub_sequence_length=512)
-    bert_classifier = ml_generation.BERTClassifier(batch_size = 32)
-    (X_train, y_train), (X_test, y_test) = datasetUtility.split_dataset(subsequences)
-    # print(f'"X_train {X_train} has type {type(X_train)}')
-    # print(f'"y_train {y_train} has type {type(y_train)}')
-    # train_inputs, train_labels, train_attention_mask = datasetUtility.tokenize_dataset(X_train, y_train)
-    # test_inputs, test_labels, test_attention_mask = datasetUtility.tokenize_dataset(X_test, y_test)
-    # train_dataset = dataset_utility.LyricsDataset(train_inputs, train_labels)
-    # test_dataset = dataset_utility.LyricsDataset(test_inputs_test_labels)
-    bert_classifier.train(X_train, y_train)
-    # output = bert_classifier.model.sequential_forward(X_test)
+    datasetutility = dataset_utility.DatasetUtility()
+    lyrics, artists = datasetutility.unpack_dataset("lyrics.csv")
+    lyrics = datasetutility.clean_dataset(lyrics)
+    subsequences = datasetutility.subsequence_split(lyrics, artists, sub_sequence_length=512)
+    bert_classifier = ml_generation.BERTClassifier()
+    (X_train, y_train), (X_test, y_test) = datasetutility.split_dataset(subsequences)
+    train_dataset = datasetutility.tokenize_dataset(X_train, y_train)
+    test_dataset = datasetutility.tokenize_dataset(X_test, y_test)
+    training_dataset = dataset_utility.LyricsDataset(train_dataset)
+    testing_dataset = dataset_utility.LyricsDataset(test_dataset)
 
+    bert_classifier.train(training_dataset, testing_dataset)
 
 
 async def main(artist: str):

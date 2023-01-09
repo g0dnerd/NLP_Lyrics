@@ -4,12 +4,12 @@ import unicodedata
 import torch
 import random
 from transformers import BertTokenizer
-from sklearn.model_selection import train_test_split
+from sklearn import preprocessing
 
 
 class DatasetUtility:
 
-    def unpack_dataset(self, filename: str)->(list, list):
+    def unpack_dataset(self, filename: str) -> (list, list):
         lyrics = []
         artists = []
         with open(filename, 'r') as csvfile:
@@ -19,7 +19,7 @@ class DatasetUtility:
                 artists.append(row['artist'])
         return lyrics, artists
 
-    def clean_dataset(self, lyrics: list)->list:
+    def clean_dataset(self, lyrics: list) -> list:
         for lyric in lyrics:
             # Remove everything within square brackets
             lyric = re.sub(r'\[[^\]]*\]', '', lyric)
@@ -47,19 +47,21 @@ class DatasetUtility:
 
         return lyrics
 
+    def tokenize_dataset(self, lyrics: list, artists: list, max_length=512) -> list:
+        tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        tokenized_dataset = tokenizer(lyrics, padding='max_length', truncation=True, max_length=max_length,
+                                      return_tensors='pt')
 
-    """
-    tokenize_dataset currently deprecated, tokenizing happening within model.train()
-    """
+        # Initialize the label encoder
+        le = preprocessing.LabelEncoder()
+        targets = le.fit_transform(artists)
 
-    # def tokenize_dataset(self, X_train, y_train):
-        # # Initialize the BERT tokenizer
-        # tokenizer = BertTokenizer.from_pretrained('bert-base-uncased') 
-        # # Tokenize and convert the training data to tensors
-        # inputs = tokenizer.batch_encode_plus(X_train, max_length=512, pad_to_max_length=True, return_tensors='pt')
-        # inputs = {k: v.to(device) for k, v in inputs.items()}
-        # labels = torch.tensor(y_train).to(device)
-        # return inputs,
+        # Convert the targets to torch tensors
+        targets = torch.tensor(targets)
+
+        # Add the targets to the tokenized dataset
+        tokenized_dataset['labels'] = targets
+        return tokenized_dataset
 
     def split_dataset(self, data, train_percentage=0.8):
         random.shuffle(data)
@@ -72,22 +74,22 @@ class DatasetUtility:
         y_test = [artist for lyric, artist in test_data]
         return (X_train, y_train), (X_test, y_test)
 
-    def subsequence_split(self, lyrics: list, artists: list, sub_sequence_length=512)->list:
+    def subsequence_split(self, lyrics: list, artists: list, sub_sequence_length=512) -> list:
         sub_sequences = []
 
         for i in range(len(lyrics)):
             song_lyrics = lyrics[i]
             artist = artists[i]
             for j in range(0, len(song_lyrics), sub_sequence_length):
-                sub_sequence = song_lyrics[j:j+sub_sequence_length]
+                sub_sequence = song_lyrics[j:j + sub_sequence_length]
                 sub_sequences.append((sub_sequence, artist))
         return sub_sequences
 
 
 class LyricsDataset(torch.utils.data.Dataset):
-    def __init__(self, input_tensor, label_tensor):
-        self.inputs = input_tensor
-        self.labels = label_tensor
+    def __init__(self, dataset):
+        self.inputs = dataset['input_ids']
+        self.labels = dataset['labels']
 
     def __len__(self):
         return len(self.inputs)
