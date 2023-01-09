@@ -8,27 +8,24 @@ import argparse
 import csv
 
 
-async def make_dataset(dataset: str):
+async def make_dataset(file_path: str):
     # If dataset mode is specified, read in the list of artists
-    with open(args.dataset, 'r') as f:
+    with open(file_path, 'r') as f:
         artists = f.readlines()
     artists = [artist.strip() for artist in artists]
-
-    # create a parser class and retrieve all song lyrics for the current artist
 
     # prepare the dataset file
     with open('lyrics.csv', 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(['lyrics', 'artist'])
     for current_artist in artists:
-        lyrics = await fetch_lyrics(current_artist, dumping=True)
+        await fetch_lyrics(current_artist, dumping=True)
 
 
 async def fetch_lyrics(artist, dumping: bool):
-    geniusParser = genius_parser.GeniusParser(artist)
-    artist_id = geniusParser.get_artist_id()
+    parser = genius_parser.GeniusParser(artist)
     print("Calling API scheduler")
-    lyrics = await geniusParser.api_scheduler(dumping)
+    lyrics = await parser.api_scheduler(dumping)
     lyrics = ' '.join(lyrics)
     return lyrics
 
@@ -46,14 +43,13 @@ def markov_generate(lyrics: str):
 
 
 def train_model():
-    datasetutility = dataset_utility.DatasetUtility()
-    lyrics, artists = datasetutility.unpack_dataset("lyrics.csv")
-    lyrics = datasetutility.clean_dataset(lyrics)
-    subsequences = datasetutility.subsequence_split(lyrics, artists, sub_sequence_length=512)
+    lyrics, artists = dataset_utility.unpack_dataset("lyrics.csv")
+    lyrics = dataset_utility.clean_dataset(lyrics)
+    subsequences = dataset_utility.subsequence_split(lyrics, artists, sub_sequence_length=512)
     bert_classifier = ml_generation.BERTClassifier()
-    (X_train, y_train), (X_test, y_test) = datasetutility.split_dataset(subsequences)
-    train_dataset = datasetutility.tokenize_dataset(X_train, y_train)
-    test_dataset = datasetutility.tokenize_dataset(X_test, y_test)
+    (X_train, y_train), (X_test, y_test) = dataset_utility.split_dataset(subsequences)
+    train_dataset = dataset_utility.tokenize_dataset(X_train, y_train)
+    test_dataset = dataset_utility.tokenize_dataset(X_test, y_test)
     training_dataset = dataset_utility.LyricsDataset(train_dataset)
     testing_dataset = dataset_utility.LyricsDataset(test_dataset)
 
@@ -62,21 +58,20 @@ def train_model():
 
 async def main(artist: str):
 
-    if args.dataset != None:
+    if args.dataset is not None:
         # If dataset mode was specified,
         # make a dataset from the artists specified in args.dataset
         await make_dataset(args.dataset)
-    elif args.artist != None:
+    elif args.artist is not None:
         # If not, fetch lyrics regularly without dumping
         lyrics = await fetch_lyrics(artist, dumping=False)
 
-    # If one of the non-ML generation modes were specified
-    if args.mode == "nltk":
-        nltk_generate(lyrics)
-    elif args.mode == "markov":
-        markov_generate(lyrics)
+        # If one of the non-ML generation modes were specified
+        if args.mode == "nltk":
+            nltk_generate(lyrics)
+        elif args.mode == "markov":
+            markov_generate(lyrics)
     elif args.mode == "ml":
-        # TODO
         train_model()
 
 if __name__ == "__main__":
